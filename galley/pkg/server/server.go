@@ -59,6 +59,7 @@ type Server struct {
 	listener   net.Listener
 	controlZ   *ctrlz.Server
 	stopCh     chan struct{}
+	callOut    *callout
 }
 
 type patchTable struct {
@@ -170,6 +171,14 @@ func newServer(a *Args, p patchTable) (*Server, error) {
 		CollectionsOptions: source.CollectionOptionsFromSlice(metadata.Types.Collections()),
 	}
 
+	if a.SinkAddress != "" {
+		s.callOut, err = newCallout(a.SinkAddress, a.SinkAuthMode, options)
+		if err != nil {
+			s.callOut = nil
+			scope.Fatalf("Callout could not be initialized: %v", err)
+		}
+	}
+
 	s.mcp = server.New(options, checker)
 
 	serverOptions := &source.ServerOptions{AuthChecker: checker}
@@ -224,16 +233,31 @@ func (s *Server) Run() {
 		defer s.serveWG.Done()
 		err := s.processor.Start()
 		if err != nil {
-			scope.Fatalf("Galley Server unexpectedly terminated: %v", err)
+			scope.Errorf("Galley Server unexpectedly terminated: %v", err)
 			return
 		}
 
 		// start serving
 		err = s.grpcServer.Serve(s.listener)
 		if err != nil {
-			scope.Fatalf("Galley Server unexpectedly terminated: %v", err)
+			scope.Errorf("Galley Server unexpectedly terminated: %v", err)
 		}
 	}()
+	if s.callOut != nil {
+		s.serveWG.Add(1)
+		go func() {
+			defer s.serveWG.Done()
+			s.callOut.Run()
+		}()
+	}
+}
+
+// Address returns the Address of the MCP service.
+func (s *Server) Address() net.Addr {
+	if s.listener == nil {
+		return nil
+	}
+	return s.listener.Addr()
 }
 
 // Close cleans up resources used by the server.
@@ -245,7 +269,6 @@ func (s *Server) Close() error {
 
 	if s.grpcServer != nil {
 		s.grpcServer.GracefulStop()
-		s.serveWG.Wait()
 	}
 
 	if s.controlZ != nil {
@@ -258,10 +281,19 @@ func (s *Server) Close() error {
 
 	if s.listener != nil {
 		_ = s.listener.Close()
+		s.listener = nil
 	}
 
 	if s.reporter != nil {
 		_ = s.reporter.Close()
+	}
+
+	if s.callOut != nil {
+		s.callOut.Close()
+	}
+
+	if s.grpcServer != nil || s.callOut != nil {
+		s.serveWG.Wait()
 	}
 
 	// final attempt to purge buffered logs

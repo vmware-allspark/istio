@@ -450,14 +450,7 @@ func validateServer(server *networking.Server) (errs error) {
 			if host != "*" && !strings.Contains(host, ".") {
 				errs = appendErrors(errs, fmt.Errorf("short names (non FQDN) are not allowed in Gateway server hosts"))
 			}
-			if err := ValidateWildcardDomain(host); err != nil {
-				ipAddr := net.ParseIP(host) // Could also be an IP
-				if ipAddr == nil {
-					errs = appendErrors(errs, err)
-				}
-			}
-			// TODO: switch to this code once ns/name format support is added to gateway
-			//errs = appendErrors(errs, validateNamespaceSlashWildcardHostname(host, true))
+			errs = appendErrors(errs, validateNamespaceSlashWildcardHostname(host, true))
 		}
 	}
 	portErr := validateServerPort(server.Port)
@@ -508,7 +501,11 @@ func validateTLSOptions(tls *networking.Server_TLSOptions) (errs error) {
 		// no tls config at all is valid
 		return
 	}
-	if tls.Mode == networking.Server_TLSOptions_MUTUAL {
+	if tls.Mode == networking.Server_TLSOptions_SIMPLE {
+		if tls.ServerCertificate == "" {
+			errs = appendErrors(errs, fmt.Errorf("SIMPLE TLS requires a server certificate"))
+		}
+	} else if tls.Mode == networking.Server_TLSOptions_MUTUAL {
 		if tls.ServerCertificate == "" {
 			errs = appendErrors(errs, fmt.Errorf("MUTUAL TLS requires a server certificate"))
 		}
@@ -598,8 +595,6 @@ func validateNamespaceSlashWildcardHostname(host string, isGateway bool) (errs e
 	parts := strings.SplitN(host, "/", 2)
 	if len(parts) != 2 {
 		if isGateway {
-			// deprecated
-			log.Warn("Gateway host without namespace is deprecated. Use namespace/hostname format")
 			// Old style host in the gateway
 			return validateSidecarOrGatewayHostnamePart(host, true)
 		}
@@ -1803,8 +1798,6 @@ func validateGatewayNames(gateways []string) (errs error) {
 		if !IsDNS1123Label(parts[1]) {
 			errs = appendErrors(errs, fmt.Errorf("invalid value for gateway name: %q", parts[1]))
 		}
-
-		return
 	}
 	return
 }

@@ -345,16 +345,16 @@ func buildLocalityLbEndpoints(env *model.Environment, proxyNetworkView map[strin
 		lbEndpoints[locality] = append(lbEndpoints[locality], ep)
 	}
 
-	LocalityLbEndpoints := make([]endpoint.LocalityLbEndpoints, len(lbEndpoints))
+	localityLbEndpoints := make([]endpoint.LocalityLbEndpoints, 0, len(lbEndpoints))
 
 	for locality, eps := range lbEndpoints {
-		LocalityLbEndpoints = append(LocalityLbEndpoints, endpoint.LocalityLbEndpoints{
+		localityLbEndpoints = append(localityLbEndpoints, endpoint.LocalityLbEndpoints{
 			Locality:    util.ConvertLocality(locality),
 			LbEndpoints: eps,
 		})
 	}
 
-	return util.LocalityLbWeightNormalize(LocalityLbEndpoints)
+	return util.LocalityLbWeightNormalize(localityLbEndpoints)
 }
 
 func buildInboundLocalityLbEndpoints(bind string, port int) []endpoint.LocalityLbEndpoints {
@@ -787,6 +787,14 @@ func applyOutlierDetection(cluster *apiv2.Cluster, outlier *networking.OutlierDe
 }
 
 func applyLoadBalancer(cluster *apiv2.Cluster, lb *networking.LoadBalancerSettings) {
+	if cluster.OutlierDetection != nil {
+		// Locality weighted load balancing
+		cluster.CommonLbConfig = &apiv2.Cluster_CommonLbConfig{
+			LocalityConfigSpecifier: &apiv2.Cluster_CommonLbConfig_LocalityWeightedLbConfig_{
+				LocalityWeightedLbConfig: &apiv2.Cluster_CommonLbConfig_LocalityWeightedLbConfig{},
+			},
+		}
+	}
 	if lb == nil {
 		return
 	}
@@ -812,15 +820,6 @@ func applyLoadBalancer(cluster *apiv2.Cluster, lb *networking.LoadBalancerSettin
 		cluster.LbConfig = &apiv2.Cluster_RingHashLbConfig_{
 			RingHashLbConfig: &apiv2.Cluster_RingHashLbConfig{
 				MinimumRingSize: &types.UInt64Value{Value: consistentHash.GetMinimumRingSize()},
-			},
-		}
-	}
-
-	if cluster.OutlierDetection != nil {
-		// Locality weighted load balancing
-		cluster.CommonLbConfig = &apiv2.Cluster_CommonLbConfig{
-			LocalityConfigSpecifier: &apiv2.Cluster_CommonLbConfig_LocalityWeightedLbConfig_{
-				LocalityWeightedLbConfig: &apiv2.Cluster_CommonLbConfig_LocalityWeightedLbConfig{},
 			},
 		}
 	}

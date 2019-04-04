@@ -1069,6 +1069,12 @@ func ValidateZipkinCollector(z *meshconfig.Tracing_Zipkin) error {
 	return ValidateProxyAddress(z.GetAddress())
 }
 
+// ValidateDatadogCollector validates the configuration for sending envoy spans to Datadog
+func ValidateDatadogCollector(d *meshconfig.Tracing_Datadog) error {
+	// If the address contains $(HOST_IP), replace it with a valid IP before validation.
+	return ValidateProxyAddress(strings.Replace(d.GetAddress(), "$(HOST_IP)", "127.0.0.1", 1))
+}
+
 // ValidateConnectTimeout validates the envoy conncection timeout
 func ValidateConnectTimeout(timeout *types.Duration) error {
 	if err := ValidateDuration(timeout); err != nil {
@@ -1151,6 +1157,12 @@ func ValidateProxyConfig(config *meshconfig.ProxyConfig) (errs error) {
 	if tracer := config.GetTracing().GetZipkin(); tracer != nil {
 		if err := ValidateZipkinCollector(tracer); err != nil {
 			errs = multierror.Append(errs, multierror.Prefix(err, "invalid zipkin config:"))
+		}
+	}
+
+	if tracer := config.GetTracing().GetDatadog(); tracer != nil {
+		if err := ValidateDatadogCollector(tracer); err != nil {
+			errs = multierror.Append(errs, multierror.Prefix(err, "invalid datadog config:"))
 		}
 	}
 
@@ -2036,21 +2048,21 @@ func validateSubsetName(name string) error {
 	return nil
 }
 
-func validatePortSelector(selector *networking.PortSelector) error {
+func validatePortSelector(selector *networking.PortSelector) (errs error) {
 	if selector == nil {
 		return nil
 	}
 
-	// port selector is either a name or a number
+	// port must be a number
 	name := selector.GetName()
 	number := int(selector.GetNumber())
-	if name == "" && number == 0 {
-		// an unset value is indistinguishable from a zero value, so return both errors
-		return appendErrors(validateSubsetName(name), ValidatePort(number))
-	} else if number != 0 {
-		return ValidatePort(number)
+	if name != "" {
+		errs = appendErrors(errs, fmt.Errorf("port.name %s is no longer supported for destination", name))
 	}
-	return validateSubsetName(name)
+	if number != 0 {
+		errs = appendErrors(errs, ValidatePort(number))
+	}
+	return
 }
 
 func validateAuthNPortSelector(selector *authn.PortSelector) error {

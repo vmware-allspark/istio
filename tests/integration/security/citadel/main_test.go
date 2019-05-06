@@ -1,4 +1,4 @@
-// Copyright 2018 Istio Authors. All Rights Reserved.
+// Copyright 2019 Istio Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package annotation
+package citadel
 
-// IsFlaky marks a test as a flaky test.
-func IsFlaky() {}
+import (
+	"testing"
+
+	"istio.io/istio/pkg/test/framework"
+	"istio.io/istio/pkg/test/framework/components/environment"
+	"istio.io/istio/pkg/test/framework/components/istio"
+	"istio.io/istio/pkg/test/framework/label"
+)
+
+var (
+	ist istio.Instance
+)
+
+func TestMain(m *testing.M) {
+	framework.NewSuite("citadel_test", m).
+		Label(label.Presubmit).
+		RequireEnvironment(environment.Kube).
+		SetupOnEnv(environment.Kube, istio.Setup(&ist, nil)).
+		Run()
+}

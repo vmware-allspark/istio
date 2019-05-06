@@ -1,4 +1,4 @@
-// Copyright 2018 Istio Authors. All Rights Reserved.
+// Copyright 2019 Istio Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flakytestfinder
+package tmpl
 
 import (
-	"reflect"
+	"bytes"
 	"testing"
+	"text/template"
 )
 
-func TestIntegTestSkipByIssueRule(t *testing.T) {
-	rpts, _ := ReportFlakyTests([]string{"testdata/"})
-	expectedRpts := []string{"TestIsMarkedFlaky1", "TestIsMarkedFlaky2"}
-
-	if !reflect.DeepEqual(rpts, expectedRpts) {
-		t.Errorf("reports don't match\nReceived: %v\nExpected: %v", rpts, expectedRpts)
+// Execute the template with the given parameters.
+func Execute(t *template.Template, data interface{}) (string, error) {
+	var b bytes.Buffer
+	if err := t.Execute(&b, data); err != nil {
+		return "", err
 	}
+
+	return b.String(), nil
+}
+
+// ExecuteOrFail calls Execute and fails the test if it returns an error.
+func ExecuteOrFail(t testing.TB, t2 *template.Template, data interface{}) string {
+	s, err := Execute(t2, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

@@ -1,4 +1,4 @@
-// Copyright 2018 Istio Authors. All Rights Reserved.
+// Copyright 2019 Istio Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package flakytestfinder
+package tmpl
 
 import (
-	"istio.io/istio/tools/checker"
+	"testing"
+	"text/template"
 )
 
-// ReportFlakyTests reports names of tests that have annotation.IsFlaky() call.
-func ReportFlakyTests(args []string) ([]string, error) {
-	matcher := RulesMatcher{}
-	whitelist := checker.NewWhitelist(map[string][]string{})
-	report := checker.NewLintReport()
+// Parse the given template content.
+func Parse(tpl string) (*template.Template, error) {
+	t := template.New("test template")
+	return t.Parse(tpl)
+}
 
-	err := checker.Check(args, &matcher, whitelist, report)
+// ParseOrFail calls Parse and fails tests if it returns error.
+func ParseOrFail(t testing.TB, tpl string) *template.Template {
+	t.Helper()
+	tpl2, err := Parse(tpl)
 	if err != nil {
-		return []string{}, err
+		t.Fatalf("tmpl.ParseOrFail: %v", err)
 	}
-	return report.Items(), nil
+	return tpl2
 }

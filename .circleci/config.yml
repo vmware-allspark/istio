@@ -10,7 +10,7 @@ defaults: &defaults
 
 integrationDefaults: &integrationDefaults
   machine: true
-  working_directory: /go/src/istio.io/istio #same as docker
+  working_directory: /go/src/istio.io/istio
   environment:
     - CHANGE_MINIKUBE_NONE_USER: true
     - GOPATH: /go
@@ -61,7 +61,7 @@ jobs:
       - store_test_results:
           path: /go/out/tests
   test:
-    <<: *defaults
+    <<: *integrationDefaults
     environment:
       KUBECONFIG: /go/src/istio.io/istio/.circleci/config
     resource_class: xlarge
@@ -81,15 +81,7 @@ jobs:
 
 workflows:
   version: 2
-  nightly:
-    triggers:
-       - schedule:
-           cron: "0 0 * * *"
-           filters:
-             branches:
-               only:
-                 - release-1.3
-                 - venil-dev
+  build_and_test:
     jobs:
       - build
       - test

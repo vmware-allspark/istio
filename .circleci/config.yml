@@ -79,7 +79,6 @@ jobs:
           command: |
             mkdir -p ~/go/out/tests
             export PATH=$GOPATH/bin:$PATH
-            go version
             make localTestEnv
             set -o pipefail
             make test binaries-test T=-v | tee -a ~/go/out/tests/build-log.txt

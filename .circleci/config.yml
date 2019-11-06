@@ -73,6 +73,7 @@ jobs:
       KUBECONFIG: ~/go/src/istio.io/istio/.circleci/config
     resource_class: xlarge
     steps:
+      - <<: *initWorkingDir
       - checkout
       - run:
           command: |

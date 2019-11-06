@@ -10,12 +10,12 @@ defaults: &defaults
 
 integrationDefaults: &integrationDefaults
   machine: true
-  working_directory: /go/src/istio.io/istio
+  working_directory: ~/go/src/istio.io/istio
   environment:
     - CHANGE_MINIKUBE_NONE_USER: true
-    - GOPATH: /go
+    - GOPATH: ~/go
     - SKIP_CLEANUP: true
-    - KUBECONFIG: /go/out/minikube.conf
+    - KUBECONFIG: ~/go/out/minikube.conf
     - TEST_ENV: minikube-none
 
 initWorkingDir: &initWorkingDir
@@ -63,21 +63,21 @@ jobs:
   test:
     <<: *integrationDefaults
     environment:
-      KUBECONFIG: /go/src/istio.io/istio/.circleci/config
+      KUBECONFIG: ~/go/src/istio.io/istio/.circleci/config
     resource_class: xlarge
     steps:
       - checkout
       - run:
           command: |
-            mkdir -p /go/out/tests
+            mkdir -p ~/go/out/tests
             export PATH=$GOPATH/bin:$PATH
             make localTestEnv
             set -o pipefail
-            make test binaries-test T=-v | tee -a /go/out/tests/build-log.txt
+            make test binaries-test T=-v | tee -a ~/go/out/tests/build-log.txt
       - <<: *recordZeroExitCodeIfTestPassed
       - <<: *recordNonzeroExitCodeIfTestFailed
       - store_test_results:
-          path: /go/out/tests
+          path: ~/go/out/tests
 
 workflows:
   version: 2

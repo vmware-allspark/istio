@@ -10,9 +10,19 @@ jobs:
     steps:
     - checkout
     - run: make -e T=-v build
+  test:
+    working_directory: /go/src/istio.io/istio
+    docker:
+    - image: gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+    environment:
+      GOPATH: /go
+    steps:
+    - checkout
+    - run: make -e T=-v localTestEnv test binaries-test
 
 workflows:
   version: 2
   ci:
     jobs:
       - build
+      - test

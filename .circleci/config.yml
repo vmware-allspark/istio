@@ -4,11 +4,11 @@ jobs:
   build:
     working_directory: /go/src/istio.io/istio
     docker:
-      - image: gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+    - image: gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
     environment:
       GOPATH: /go
     steps:
-      - make -e T=-v build
+    - run: make -e T=-v build
 
 workflows:
   version: 2

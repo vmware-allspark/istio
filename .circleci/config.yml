@@ -8,6 +8,7 @@ jobs:
     environment:
       GOPATH: /go
     steps:
+    - checkout
     - run: make -e T=-v build
 
 workflows:

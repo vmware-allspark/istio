@@ -1,15 +1,44 @@
 version: 2
 
 jobs:
-  test:
+  unit-tests_istio_release-1.3_postsubmit:
     machine:
       docker_layer_caching: true
     steps:
     - checkout
     - run: docker run --privileged -v $(pwd):/go/src/istio.io/istio/ gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty bash -c 'cd /go/src/istio.io/istio/; make -e T=-v build localTestEnv test binaries-test'
+  racetest_istio_release-1.3_postsubmit:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: docker run --privileged -v $(pwd):/go/src/istio.io/istio/ gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty bash -c 'cd /go/src/istio.io/istio/; make -e T=-v localTestEnv racetest'
+  codecov_istio_release-1.3_postsubmit:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: docker run --privileged -v $(pwd):/go/src/istio.io/istio/ gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty bash -c 'cd /go/src/istio.io/istio/; make coverage-diff'
+  release-test_istio_release-1.3_postsubmit:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: docker run --privileged -v $(pwd):/go/src/istio.io/istio/ gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty bash -c 'cd /go/src/istio.io/istio/; prow/release-test.sh'
+  e2e-mixer-no_auth_istio_release-1.3_postsubmit:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: docker volume create docker-root
+    - run: docker run --privileged -v $(pwd):/go/src/istio.io/istio/ -v /lib/modules:/lib/modules -v /sys/fs/cgroup:/sys/fs/cgroup -v docker-root:/var/lib/docker gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty bash -c 'cd /go/src/istio.io/istio/; prow/e2e-kind-suite.sh --single_test e2e_mixer'
 
 workflows:
   version: 2
   ci:
     jobs:
-      - test
+      - unit-tests_istio_release-1.3_postsubmit
+      - racetest_istio_release-1.3_postsubmit
+      - codecov_istio_release-1.3_postsubmit
+      - release-test_istio_release-1.3_postsubmit
+      - e2e-mixer-no_auth_istio_release-1.3_postsubmit

@@ -2,14 +2,11 @@ version: 2
 
 jobs:
   test:
-    working_directory: /go/src/istio.io/istio
-    docker:
-    - image: gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
-    environment:
-      GOPATH: /go
+    machine: true
     steps:
     - checkout
-    - run: make -e T=-v build localTestEnv test binaries-test
+    - run: docker run --privileged --name build-container -v $(pwd):/go/src/istio.io/istio/ gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+    - run: docker exec build-container bash -c 'cd /go/src/istio.io/istio/; make -e T=-v build localTestEnv test binaries-test'
 
 workflows:
   version: 2

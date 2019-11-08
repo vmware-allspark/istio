@@ -7,11 +7,11 @@ jobs:
     steps:
     - checkout
     - run: >-
-        docker run
-          --privileged
-          -v $(pwd):/go/src/istio.io/istio/
-          -w /go/src/istio.io/istio/
-          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'make -e T=-v build localTestEnv test binaries-test'
   racetest_istio_release-1.3_postsubmit:
     machine:
@@ -19,11 +19,11 @@ jobs:
     steps:
     - checkout
     - run: >-
-        docker run
-          --privileged
-          -v $(pwd):/go/src/istio.io/istio/
-          -w /go/src/istio.io/istio/
-          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'make -e T=-v localTestEnv racetest'
   codecov_istio_release-1.3_postsubmit:
     machine:
@@ -31,11 +31,11 @@ jobs:
     steps:
     - checkout
     - run: >-
-        docker run
-          --privileged
-          -v $(pwd):/go/src/istio.io/istio/
-          -w /go/src/istio.io/istio/
-          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'make coverage-diff'
   release-test_istio_release-1.3_postsubmit:
     machine:
@@ -43,11 +43,11 @@ jobs:
     steps:
     - checkout
     - run: >-
-        docker run
-          --privileged
-          -v $(pwd):/go/src/istio.io/istio/
-          -w /go/src/istio.io/istio/
-          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'prow/release-test.sh'
   e2e-mixer-no_auth_istio_release-1.3_postsubmit:
     machine:
@@ -56,15 +56,15 @@ jobs:
     - checkout
     - run: docker volume create docker-root
     - run: >-
-        docker run
-          --privileged
-          -v $(pwd):/go/src/istio.io/istio/
-          -v /lib/modules:/lib/modules
-          -v /sys/fs/cgroup:/sys/fs/cgroup
-          -v docker-root:/var/lib/docker
-          -e PULL_BASE_SHA="$CIRCLE_SHA1"
-          -w /go/src/istio.io/istio/
-          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -v /lib/modules:/lib/modules \
+          -v /sys/fs/cgroup:/sys/fs/cgroup \
+          -v docker-root:/var/lib/docker \
+          -e PULL_BASE_SHA="$CIRCLE_SHA1" \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'prow/e2e-kind-suite.sh --single_test e2e_mixer'
 
 workflows:

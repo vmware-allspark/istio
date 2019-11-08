@@ -5,10 +5,12 @@ jobs:
     machine: true
     steps:
     - checkout
+    - setup_remote_docker:
+        docker_layer_caching: true
     - run: docker run --privileged \
-                      -v $(pwd):/go/src/istio.io/istio/ \
-                      gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
-                      bash -c 'cd /go/src/istio.io/istio/; make -e T=-v build localTestEnv test binaries-test'
+             -v $(pwd):/go/src/istio.io/istio/ \
+             gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
+             bash -c 'cd /go/src/istio.io/istio/; make -e T=-v build localTestEnv test binaries-test'
 
 workflows:
   version: 2

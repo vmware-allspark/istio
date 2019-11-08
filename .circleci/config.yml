@@ -46,6 +46,7 @@ jobs:
         docker run \
           --privileged \
           -v $(pwd):/go/src/istio.io/istio/ \
+          -e PULL_BASE_SHA="$CIRCLE_SHA1" \
           -w /go/src/istio.io/istio/ \
           gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'prow/release-test.sh'
@@ -63,6 +64,7 @@ jobs:
           -v /sys/fs/cgroup:/sys/fs/cgroup \
           -v docker-root:/var/lib/docker \
           -e PULL_BASE_SHA="$CIRCLE_SHA1" \
+          -e ARTIFACTS="/tmp" \
           -w /go/src/istio.io/istio/ \
           gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'prow/e2e-kind-suite.sh --single_test e2e_mixer'

@@ -71,6 +71,25 @@ jobs:
           gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'prow/e2e-kind-suite.sh --single_test e2e_mixer'
 
+  dockerpush:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: >-
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -e PULL_BASE_SHA="$CIRCLE_SHA1" \
+          -e GOPATH="/go" \
+          -e DOCKER_USER="$DOCKER_USER" \
+          -e DOCKER_PASS="$DOCKER_PASS" \
+          -e HUB="$HUB" \
+          -e TAG="$TAG" \
+          -w /go/src/istio.io/istio/ \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
+          bash -c 'make docker; docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}; make push'
+
 workflows:
   version: 2
   ci:

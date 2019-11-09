@@ -10,6 +10,7 @@ jobs:
         docker run \
           --privileged \
           -v $(pwd):/go/src/istio.io/istio/ \
+          -e ARTIFACTS="/tmp" \
           -w /go/src/istio.io/istio/ \
           gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
           bash -c 'make -e T=-v build localTestEnv test binaries-test'

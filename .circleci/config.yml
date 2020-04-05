@@ -1,0 +1,41 @@
+version: 2
+
+jobs:
+  unit-tests_istio:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: >-
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          -e BUILD_WITH_CONTAINER="0" \
+          gcr.io/istio-testing/build-tools:master-2020-03-24T16-16-03 \
+          bash -c 'make -e T=-v build racetest binaries-test'
+
+  dockerpush:
+    machine:
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run: >-
+        docker run \
+          --privileged \
+          -v $(pwd):/go/src/istio.io/istio/ \
+          -w /go/src/istio.io/istio/ \
+          -e PULL_BASE_SHA="$CIRCLE_SHA1" \
+          -e GOPATH="/go" \
+          -e DOCKER_USER="$DOCKER_USER" \
+          -e DOCKER_PASS="$DOCKER_PASS" \
+          -e HUB="$HUB" \
+          -e TAG="$TAG" \
+          gcr.io/istio-testing/istio-builder:v20191017-386873c9-dirty \
+          bash -c 'make docker; docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}; make push'
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - unit-tests_istio

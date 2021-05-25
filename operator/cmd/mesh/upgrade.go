@@ -186,9 +186,12 @@ func upgrade(rootArgs *rootArgs, args *upgradeArgs, l clog.Logger) (err error) {
 
 	// Read the current installation's profile IOPS yaml to check the changed profile settings between versions.
 	currentSets := args.set
-	if currentVersion != "" {
-		currentSets = append(currentSets, "installPackagePath="+releaseURLFromVersion(currentVersion))
-	}
+	//https://github.com/istio/istio/issues/32689
+	//https://jira.eng.vmware.com/browse/TSM-1088
+	//Commenting following code to avoid github access, during upgrade we will pass local manifest
+	//if currentVersion != "" {
+	//	currentSets = append(currentSets, "installPackagePath="+releaseURLFromVersion(currentVersion))
+	//}
 	profile := targetIOPS.Profile
 	if profile == "" {
 		profile = name.DefaultProfileName

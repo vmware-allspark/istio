@@ -23,6 +23,9 @@ ARG proxy_version
 ARG istio_version
 ARG SIDECAR=envoy
 
+#Modsec config
+COPY modsec_config /usr/local/
+
 # Copy Envoy bootstrap templates used by pilot-agent
 COPY envoy_bootstrap.json /var/lib/istio/envoy/envoy_bootstrap_tmpl.json
 COPY gcp_envoy_bootstrap.json /var/lib/istio/envoy/gcp_envoy_bootstrap_tmpl.json

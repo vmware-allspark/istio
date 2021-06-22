@@ -26,6 +26,58 @@ spec:
     defaultRevision: ""
     global:
       istioNamespace: istio-system
+      istiod:
+        enableAnalysis: false
+      logging:
+        level: "default:info"
+      logAsJson: false
+      pilotCertProvider: istiod
+      jwtPolicy: third-party-jwt
+      proxy:
+        image: proxyv2
+        clusterDomain: "cluster.local"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+        logLevel: critical
+        componentLogLevel: "misc:error"
+        privileged: false
+        enableCoreDump: false
+        statusPort: 15020
+        readinessInitialDelaySeconds: 1
+        readinessPeriodSeconds: 2
+        readinessFailureThreshold: 30
+        includeIPRanges: "*"
+        excludeIPRanges: ""
+        excludeOutboundPorts: ""
+        excludeInboundPorts: ""
+        autoInject: enabled
+        tracer: "zipkin"
+      proxy_init:
+        image: proxyv2
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 1024Mi
+          requests:
+            cpu: 10m
+            memory: 10Mi
+      # Specify image pull policy if default behavior isn't desired.
+      # Default behavior: latest images will be Always else IfNotPresent.
+      imagePullPolicy: ""
+      operatorManageWebhooks: false
+      tracer:
+        lightstep: {}
+        zipkin: {}
+        datadog: {}
+        stackdriver: {}
+      imagePullSecrets: []
+      oneNamespace: false
+      defaultNodeSelector: {}
       configValidation: true
     gateways:
       istio-ingressgateway: {}

@@ -61,7 +61,7 @@ spec:
           limits:
             cpu: 2000m
             memory: 1024Mi
-        logLevel: warning
+        logLevel: critical
         componentLogLevel: "misc:error"
         privileged: false
         enableCoreDump: false

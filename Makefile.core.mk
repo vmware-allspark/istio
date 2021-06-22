@@ -179,6 +179,9 @@ endif
 export ISTIO_ENVOY_BOOTSTRAP_CONFIG_PATH ?= ${ISTIO_GO}/tools/packaging/common/envoy_bootstrap.json
 export ISTIO_ENVOY_BOOTSTRAP_CONFIG_DIR = $(dir ${ISTIO_ENVOY_BOOTSTRAP_CONFIG_PATH})
 
+#Modsec config
+export MODSEC_CONFIG_PATH = ${ISTIO_GO}/modsec_config
+
 # If the hub is not explicitly set, use default to istio.
 HUB ?=istio
 ifeq ($(HUB),)

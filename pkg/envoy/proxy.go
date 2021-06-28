@@ -91,8 +91,8 @@ func (e *envoy) args(fname string, epoch int, bootstrapConfig string) []string {
 		"--service-cluster", e.Metadata.ProxyConfig.ServiceCluster,
 		"--service-node", e.ID,
 		"--local-address-ip-version", proxyLocalAddressType,
-		"--bootstrap-version", "3",
 		"--disable-hot-restart", // We don't use it, so disable it to simplify Envoy's logic
+		"--bootstrap-version", "2",
 	}
 	if e.ProxyConfig.LogAsJSON {
 		startupArgs = append(startupArgs,

@@ -116,7 +116,7 @@ func (e *envoy) args(fname string, epoch int, bootstrapConfig string) []string {
 		"--service-cluster", e.Config.ServiceCluster,
 		"--service-node", e.Node,
 		"--local-address-ip-version", proxyLocalAddressType,
-		"--bootstrap-version", "3",
+		"--bootstrap-version", "2",
 	}
 	if e.ProxyConfig.LogAsJSON {
 		startupArgs = append(startupArgs,

@@ -30,6 +30,8 @@ import (
 
 	mixerpb "istio.io/api/mixer/v1"
 	attr "istio.io/pkg/attribute"
+	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/golang/protobuf/ptypes"
 )
 
 // EnvoyProtoBag implements the Bag interface on top of an Attributes proto.
@@ -136,6 +138,18 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 		//default protocol to start but if it's grpc it will be overwritten
 		reqMap["context.protocol"] = "http"
 		commonproperties = *httpLogs.GetLogEntry()[num].GetCommonProperties()
+		downstreamPeerId, ok := commonproperties.FilterStateObjects["wasm.downstream_peer_id"]
+		if ok {
+			bv := wrappers.BytesValue{}
+			ptypes.UnmarshalAny(downstreamPeerId, &bv)
+			s := string(bv.GetValue())
+			// "sidecar~192.168.37.56~shopping-6bf9d78f76-zc8wd.default~default.svc.cluster.local"
+			// "kubernetes://shopping-85b676646b-k56cj.default"
+			parts := strings.Split(s, "~")
+			if len(parts) > 3 {
+				reqMap["source.uid"]= fmt.Sprintf("kubernetes://%s", parts[2])
+			}
+		}
 		if starttime := commonproperties.GetStartTime(); starttime != nil {
 			reqMap["request.time"] = reformatTime(starttime, 0)
 			if timetoupbyte := commonproperties.GetTimeToFirstUpstreamRxByte(); timetoupbyte != nil {
@@ -210,11 +224,18 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 }
 
 //fills in destination.service.name and destination.service.host after the initial bag has been built
-func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace string) {
+func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace string) (err error) {
+	defer func () {
+		if r := recover(); r != nil  {
+			err = fmt.Errorf("Unexpected upstreamCluster name %s", pb.upstreamCluster)
+		}
+	}()
 	parts := strings.Split(pb.upstreamCluster, "|")
 	var host string
 	if len(parts) == 4 {
 		host = parts[3]
+	} else if parts = strings.Split(pb.upstreamCluster, "_"); len(parts) == 4  {
+		host = parts[3][1:]
 	} else {
 		host = pb.reqMap["request.host"].(string)
 	}
@@ -222,10 +243,10 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 	namePos := strings.IndexAny(host, ".:")
 	if namePos == -1 {
 		pb.reqMap["destination.service.name"] = host
-		return
+		return err
 	} else if host[namePos] == ':' {
 		pb.reqMap["destination.service.name"] = host[0:namePos]
-		return
+		return err
 	}
 	namespacePos := strings.IndexAny(host[namePos+1:], ".:")
 	var serviceNamespace string
@@ -240,6 +261,7 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 		pb.reqMap["destination.service.name"] = host
 	}
 	pb.reqMap["destination.service.namespace"] = serviceNamespace
+	return err
 }
 
 // Get returns an attribute value.

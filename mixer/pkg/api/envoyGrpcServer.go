@@ -246,7 +246,9 @@ func dispatchSingleReportEnvoy(ctx context.Context, preprocessor dispatcher.Disp
 		return fmt.Errorf("preprocessing attributes failed: %v", err)
 	}
 	if destinationNamespace, ok := reportBag.Get("destination.namespace"); ok {
-		attributesBag.AddNamespaceDependentAttributes(destinationNamespace.(string))
+		if err := attributesBag.AddNamespaceDependentAttributes(destinationNamespace.(string)); err != nil {
+			return fmt.Errorf("Adding namespace dependent attributes failed: %v", err)
+		}
 	}
 
 	lg.Debug("Dispatching to main adapters after running preprocessors")

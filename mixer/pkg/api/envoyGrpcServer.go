@@ -24,8 +24,8 @@ import (
 	"google.golang.org/grpc/codes"
 	grpc "google.golang.org/grpc/status"
 
-	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
-	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
+	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 
 	rpc "istio.io/gogo-genproto/googleapis/google/rpc"

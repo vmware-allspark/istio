@@ -15,7 +15,7 @@
 package attribute
 
 import (
-	accesslogpb "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v2"
+	accesslogpb "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 )
 
 const (

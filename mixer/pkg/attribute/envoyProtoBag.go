@@ -22,10 +22,11 @@ import (
 	"sync"
 	"time"
 
-	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	alspb "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v2"
-	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
-	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	//core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	alspb "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
+	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
+	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 	"github.com/golang/protobuf/ptypes/timestamp"
 
 	mixerpb "istio.io/api/mixer/v1"

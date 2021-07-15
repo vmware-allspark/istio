@@ -30,8 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v2"
-	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v2"
+	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
+	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
 
 	mixerpb "istio.io/api/mixer/v1"
 	"istio.io/istio/mixer/pkg/adapter"

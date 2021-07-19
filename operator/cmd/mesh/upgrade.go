@@ -395,7 +395,7 @@ func coalesceVersions(cv []ComponentVersion) (string, error) {
 func identicalVersions(cv []ComponentVersion) bool {
 	exemplar := cv[0]
 	for i := 1; i < len(cv); i++ {
-		if exemplar.Version != cv[i].Version {
+		if exemplar.Version != cv[i].Version && cv[i].Component != "telemetry" {
 			return false
 		}
 	}

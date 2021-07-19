@@ -175,6 +175,7 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 			reqMap["response.size"] = int64(response.GetResponseBodyBytes())
 			reqMap["response.total_size"] = int64(response.GetResponseBodyBytes()) + int64(response.GetResponseHeadersBytes())
 		}
+		reqMap["response.duration"] = commonproperties.GetTimeToFirstUpstreamRxByte().AsDuration().Nanoseconds()
 	} else if tcpLogs := msg.GetTcpLogs(); tcpLogs != nil {
 		reqMap["context.protocol"] = "tcp"
 		commonproperties = *tcpLogs.GetLogEntry()[num].GetCommonProperties()

@@ -463,7 +463,7 @@ func (client *Client) GetIstioVersions(namespace string) ([]ComponentVersion, er
 		switch component {
 		case "statsd-prom-bridge":
 			continue
-		case "mixer":
+		case "mixer", "telemetry":
 			continue
 		}
 

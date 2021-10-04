@@ -27,12 +27,13 @@ import (
 	alspb "github.com/envoyproxy/go-control-plane/envoy/data/accesslog/v3"
 	accesslog "github.com/envoyproxy/go-control-plane/envoy/service/accesslog/v3"
 	authz "github.com/envoyproxy/go-control-plane/envoy/service/auth/v3"
+	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/golang/protobuf/ptypes/timestamp"
 
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	mixerpb "istio.io/api/mixer/v1"
 	attr "istio.io/pkg/attribute"
-	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/golang/protobuf/ptypes"
 )
 
 // EnvoyProtoBag implements the Bag interface on top of an Attributes proto.
@@ -127,6 +128,20 @@ func AuthzProtoBag(req *authz.CheckRequest) *EnvoyProtoBag {
 	return pb
 }
 
+func getMetadata(metadata *core.Metadata, key string) (*structpb.Struct, bool) {
+	var (
+		data  *structpb.Struct
+		found bool
+	)
+	if metadata != nil {
+		filterMetadata := metadata.GetFilterMetadata()
+		if filterMetadata != nil {
+			data, found = filterMetadata[key]
+		}
+	}
+	return data, found
+}
+
 // AccessLogProtoBag returns an attribute bag from a StreamAccessLogsMessage
 // When you are done using the proto bag, call the Done method to recycle it.
 // num is the index of the entry from the message's batch to create a bag from
@@ -139,18 +154,6 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 		//default protocol to start but if it's grpc it will be overwritten
 		reqMap["context.protocol"] = "http"
 		commonproperties = *httpLogs.GetLogEntry()[num].GetCommonProperties()
-		downstreamPeerId, ok := commonproperties.FilterStateObjects["wasm.downstream_peer_id"]
-		if ok {
-			bv := wrappers.BytesValue{}
-			ptypes.UnmarshalAny(downstreamPeerId, &bv)
-			s := string(bv.GetValue())
-			// "sidecar~192.168.37.56~shopping-6bf9d78f76-zc8wd.default~default.svc.cluster.local"
-			// "kubernetes://shopping-85b676646b-k56cj.default"
-			parts := strings.Split(s, "~")
-			if len(parts) > 3 {
-				reqMap["source.uid"]= fmt.Sprintf("kubernetes://%s", parts[2])
-			}
-		}
 		if starttime := commonproperties.GetStartTime(); starttime != nil {
 			reqMap["request.time"] = reformatTime(starttime, 0)
 			if timetoupbyte := commonproperties.GetTimeToFirstUpstreamRxByte(); timetoupbyte != nil {
@@ -188,6 +191,12 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 			reqMap["connection.received.bytes"] = int64(connection.GetReceivedBytes())
 			reqMap["connection.sent.bytes"] = int64(connection.GetSentBytes())
 		}
+
+		if s, found := getMetadata(commonproperties.Metadata, "envoy.wasm.metadata_exchange.downstream_peer_extra_metadata"); found {
+			reqMap["request.headers"] = attr.WrapStringMap(map[string]string{
+				"x-allspark-request-header": s.GetFields()["cluster_name"].GetStringValue(),
+			})
+		}
 	}
 	reqMap["context.reporter.kind"] = "inbound"
 	if downLocalAddress := commonproperties.GetDownstreamLocalAddress(); downLocalAddress != nil {
@@ -211,7 +220,17 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 		}
 		reqMap["connection.requested_server_name"] = tlsproperties.GetTlsSniHostname()
 	}
-
+	downstreamPeerId, ok := commonproperties.FilterStateObjects["wasm.downstream_peer_id"]
+	if ok {
+		bv := wrappers.BytesValue{}
+		ptypes.UnmarshalAny(downstreamPeerId, &bv)
+		s := string(bv.GetValue())
+		// "sidecar~192.168.37.56~shopping-6bf9d78f76-zc8wd.default~default.svc.cluster.local"
+		parts := strings.Split(s, "~")
+		if len(parts) > 3 {
+			reqMap["source.uid"] = fmt.Sprintf("kubernetes://%s", parts[2])
+		}
+	}
 	// This is for identifying the log type as Service Access Logs instead of Mixer Report
 	// This is more specifically for making migration easier.
 	// In migration users will enable access log service and then after will
@@ -227,8 +246,8 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 
 //fills in destination.service.name and destination.service.host after the initial bag has been built
 func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace string) (err error) {
-	defer func () {
-		if r := recover(); r != nil  {
+	defer func() {
+		if r := recover(); r != nil {
 			err = fmt.Errorf("Unexpected upstreamCluster name %s", pb.upstreamCluster)
 		}
 	}()
@@ -236,10 +255,10 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 	var host string
 	if len(parts) == 4 {
 		host = parts[3]
-	} else if parts = strings.Split(pb.upstreamCluster, "_"); len(parts) == 4  {
+	} else if parts = strings.Split(pb.upstreamCluster, "_"); len(parts) == 4 {
 		host = parts[3][1:]
 	} else {
-		host = pb.reqMap["request.host"].(string)
+		host = pb.upstreamCluster
 	}
 	pb.reqMap["destination.service.host"] = host
 	namePos := strings.IndexAny(host, ".:")

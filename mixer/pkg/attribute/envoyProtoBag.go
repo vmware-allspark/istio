@@ -149,6 +149,10 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 			parts := strings.Split(s, "~")
 			if len(parts) > 3 {
 				reqMap["source.uid"]= fmt.Sprintf("kubernetes://%s", parts[2])
+				namespace := strings.Split(parts[2], ".")
+				if len(namespace) == 2 {
+					reqMap["source.namespace"] = namespace[1]
+				}
 			}
 		}
 		if starttime := commonproperties.GetStartTime(); starttime != nil {

@@ -375,10 +375,10 @@ $(foreach TGT,$(DOCKER_TARGETS),$(eval tar.$(TGT): $(TGT) | $(ISTIO_DOCKER_TAR) 
 $(foreach TGT,$(DOCKER_TARGETS),$(eval DOCKER_TAR_TARGETS+=tar.$(TGT)))
 
 # this target saves a tar.gz of each docker image to ${ISTIO_OUT_LINUX}/docker/
-ifeq ($(DOCKER_V2_BUILDER), true)
-dockerx.save:
-	./tools/docker --save
-else
+#ifeq ($(DOCKER_V2_BUILDER), true)
+#dockerx.save:
+#	./tools/docker --save
+#else
 dockerx.save: dockerx $(ISTIO_DOCKER_TAR)
 	$(foreach TGT,$(DOCKER_TARGETS), \
 	$(foreach VARIANT,$(DOCKER_BUILD_VARIANTS) default, \
@@ -390,7 +390,7 @@ dockerx.save: dockerx $(ISTIO_DOCKER_TAR)
 	   ); \
 	   fi; \
 	 ))
-endif
+#endif
 
 docker.save: dockerx.save
 

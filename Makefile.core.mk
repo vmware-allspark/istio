@@ -44,6 +44,9 @@ export GO111MODULE ?= on
 export GOPROXY ?= https://proxy.golang.org
 export GOSUMDB ?= sum.golang.org
 
+#Modsec config
+export MODSEC_CONFIG_PATH = ${ISTIO_GO}/modsec_config
+
 # If GOPATH is not set by the env, set it to a sane value
 GOPATH ?= $(shell cd ${ISTIO_GO}/../../..; pwd)
 export GOPATH

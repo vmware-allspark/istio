@@ -17,38 +17,6 @@
 .PHONY: docker.save
 .PHONY: docker.push
 
-<<<<<<< HEAD
-### Docker commands ###
-# Below provides various commands to build/push docker images.
-# These are all wrappers around ./tools/docker, the binary that controls docker builds.
-# Builds can also be done through direct ./tools/docker invocations.
-# When using these commands the flow is:
-#  1) make target calls ./tools/docker
-#  2) ./tools/docker calls `make build.docker.x` targets to compute the dependencies required
-#  3) ./tools/docker triggers the actual docker commands required
-# As a result, there are two layers of make involved.
-
-docker: ## Build all docker images
-	./tools/docker
-
-docker.save: ## Build docker images and save to tar.gz
-	./tools/docker --save
-
-docker.push: ## Build all docker images and push to
-	./tools/docker --push
-
-# Legacy command aliases
-docker.all: docker
-	@:
-dockerx.save: docker.save
-	@:
-dockerx.push: docker.push
-	@:
-dockerx.pushx: docker.push
-	@:
-dockerx: docker
-	@:
-=======
 # Docker target will build the go binaries and package the docker for local testing.
 # It does not upload to a registry.
 docker: docker.all
@@ -276,7 +244,6 @@ dockerx:
 	@# Retry works around https://github.com/docker/buildx/issues/298
 	DOCKER_CLI_EXPERIMENTAL=enabled bin/retry.sh "read: connection reset by peer" docker buildx bake $(BUILDX_BAKE_EXTRA_OPTIONS) -f $(DOCKERX_BUILD_TOP)/docker-bake.hcl $(or $(DOCKER_BUILD_VARIANTS),default) || \
 		{ tools/dump-docker-logs.sh; exit 1; }
->>>>>>> 38385ad6cb (TSM-2214 - Added modsec config to istio-proxy.)
 
 # Support individual images like `dockerx.pilot`
 

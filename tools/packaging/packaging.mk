@@ -110,6 +110,7 @@ rpm-7/fpm:
 # Package the sidecar deb file.
 deb/fpm:
 	rm -f ${TARGET_OUT_LINUX}/release/istio-sidecar.deb
+	ls -ltr ${TARGET_OUT_LINUX}
 	fpm -s dir -t deb -n ${SIDECAR_PACKAGE_NAME} -p ${TARGET_OUT_LINUX}/release/istio-sidecar.deb --version $(PACKAGE_VERSION) -f \
 		--url http://istio.io  \
 		--license Apache \

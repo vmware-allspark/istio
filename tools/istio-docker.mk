@@ -263,4 +263,35 @@ docker.%:
 # Build individual docker image. Ex: dockerx.pilot
 dockerx.docker.%:
 	DOCKER_TARGETS=docker.$* ./tools/docker
+
+dockerx.save: dockerx $(ISTIO_DOCKER_TAR)
+	$(foreach TGT,$(DOCKER_TARGETS), \
+	$(foreach VARIANT,$(DOCKER_BUILD_VARIANTS) default, \
+	   if ! ./tools/skip-image.sh $(TGT) $(VARIANT); then \
+	   time ( \
+		 echo $(TGT)-$(VARIANT); \
+		 docker save $(HUB)/$(subst docker.,,$(TGT)):$(TAG)$(call variant-tag,$(VARIANT)) |\
+		 gzip --fast > ${ISTIO_DOCKER_TAR}/$(subst docker.,,$(TGT))$(call variant-tag,$(VARIANT)).tar.gz \
+	   ); \
+	   fi; \
+	 ))
+
+docker.save: dockerx.save
+
+# for each docker.XXX target create a push.docker.XXX target that pushes
+# the local docker image to another hub
+# a possible optimization is to use tag.$(TGT) as a dependency to do the tag for us
+$(foreach TGT,$(DOCKER_TARGETS),$(eval push.$(TGT): | $(TGT) ; \
+	time (set -e && for distro in $(DOCKER_BUILD_VARIANTS); do tag=$(TAG)-$$$${distro}; docker push $(HUB)/$(subst docker.,,$(TGT)):$$$${tag%-default}; done)))
+
+define run_vulnerability_scanning
+        $(eval RESULTS_DIR := vulnerability_scan_results)
+        $(eval CURL_RESPONSE := $(shell curl -s --create-dirs -o $(RESULTS_DIR)/$(1) -w "%{http_code}" http://imagescanner.cloud.ibm.com/scan?image="docker.io/$(2)")) \
+        $(if $(filter $(CURL_RESPONSE), 200), (mv $(RESULTS_DIR)/$(1) $(RESULTS_DIR)/$(1).json))
+endef
+
+# create a DOCKER_PUSH_TARGETS that's each of DOCKER_TARGETS with a push. prefix
+DOCKER_PUSH_TARGETS:=
+$(foreach TGT,$(DOCKER_TARGETS),$(eval DOCKER_PUSH_TARGETS+=push.$(TGT)))
+
 ### End docker commands ###

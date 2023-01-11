@@ -25,7 +25,7 @@ ARG istio_version
 ARG SIDECAR=envoy
 
 #Modsec config
-COPY ${MODSEC_CONFIG_PATH}/modsec_config /usr/local/
+# COPY ${MODSEC_CONFIG_PATH}/modsec_config /usr/local/
 
 # Copy Envoy bootstrap templates used by pilot-agent
 COPY envoy_bootstrap.json /var/lib/istio/envoy/envoy_bootstrap_tmpl.json

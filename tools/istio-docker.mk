@@ -30,7 +30,7 @@
 docker: ## Build all docker images
 	./tools/docker
 
-docker.proxyv2: ${MODSEC_CONFIG_PATH}
+# docker.proxyv2: ${MODSEC_CONFIG_PATH}
 
 docker.save: ## Build docker images and save to tar.gz
 	./tools/docker --save

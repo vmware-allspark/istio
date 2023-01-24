@@ -440,6 +440,7 @@ func (v *StatusVerifier) reportStatus(crdCount, istioDeploymentCount int, err er
 		}
 		return fmt.Errorf("no Istio installation found")
 	}
+	fmt.Println(err)
 	if err != nil {
 		// Don't return full error; it is usually an unwieldy aggregate
 		return fmt.Errorf("Istio installation failed") // nolint

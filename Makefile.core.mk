@@ -120,6 +120,9 @@ $(shell mkdir -p $(dir $(JUNIT_OUT)))
 $(TARGET_OUT):
 	@mkdir -p $@
 
+#Modsec config
+export MODSEC_CONFIG_PATH = ${ISTIO_GO}/modsec_config
+
 # If the hub is not explicitly set, use default to istio.
 HUB ?=istio
 ifeq ($(HUB),)

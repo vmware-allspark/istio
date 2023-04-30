@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -157,7 +156,7 @@ func createBuildxBuilderIfNeeded(a Args) error {
 	if !a.Save {
 		return nil // default builder supports all but .save
 	}
-	if _, f := os.LookupEnv("CI"); !f {
+	/*if _, f := os.LookupEnv("CI"); !f {
 		// If we are not running in CI and the user is not using --save, assume the current
 		// builder is OK.
 		if !a.Save {
@@ -180,7 +179,7 @@ func createBuildxBuilderIfNeeded(a Args) error {
 				" --name istio-builder --driver docker-container --buildkitd-flags=\"--debug\" --use)")
 		}
 		return nil
-	}
+	}*/
 	return exec.Command("sh", "-c", `
 export DOCKER_CLI_EXPERIMENTAL=enabled
 if ! docker buildx ls | grep -q container-builder; then

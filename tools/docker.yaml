@@ -37,6 +37,7 @@ images:
   - ${TARGET_OUT_LINUX}/release/stats-filter.compiled.wasm
   - ${TARGET_OUT_LINUX}/release/metadata-exchange-filter.wasm
   - ${TARGET_OUT_LINUX}/release/metadata-exchange-filter.compiled.wasm
+  - modsec_config
   targets:
   - ${TARGET_OUT_LINUX}/pilot-agent
 - name: pilot

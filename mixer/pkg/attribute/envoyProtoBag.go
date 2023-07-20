@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"strconv"
 
 	//core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -34,6 +35,8 @@ import (
 	"github.com/golang/protobuf/ptypes/wrappers"
 	mixerpb "istio.io/api/mixer/v1"
 	attr "istio.io/pkg/attribute"
+
+	"istio.io/pkg/log"
 )
 
 // EnvoyProtoBag implements the Bag interface on top of an Attributes proto.
@@ -255,6 +258,7 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 			err = fmt.Errorf("Unexpected upstreamCluster name %s", pb.upstreamCluster)
 		}
 	}()
+
 	parts := strings.Split(pb.upstreamCluster, "|")
 	var host string
 	if len(parts) == 4 {
@@ -265,6 +269,13 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 		host = pb.upstreamCluster
 	}
 	pb.reqMap["destination.service.host"] = host
+
+	port, err := strconv.ParseInt(parts[1], 10, 64)
+	if err == nil {
+	        log.Debugf("Upstream cluster : %s, dst port: %d,  reset port: %d", pb.upstreamCluster, pb.reqMap["destination.port"], port)
+		pb.reqMap["destination.port"] = port
+	}
+
 	namePos := strings.IndexAny(host, ".:")
 	if namePos == -1 {
 		pb.reqMap["destination.service.name"] = host

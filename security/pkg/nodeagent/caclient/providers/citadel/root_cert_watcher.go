@@ -120,7 +120,7 @@ func (r *rootCertWatcher) Exists() bool {
 	if fileInfo.Mode()&os.ModeSymlink == 0 {
 		return true
 	}
-	// Check if it's a symlink
+	// The file is a symlink. Looking for an actual file.
 	_, linkErr := os.Stat(r.filePath)
 
 	if os.IsNotExist(linkErr) {

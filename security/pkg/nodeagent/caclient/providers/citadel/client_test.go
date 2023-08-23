@@ -78,18 +78,28 @@ func (ca *mockCAServer) CreateCertificate(ctx context.Context, in *pb.IstioCerti
 }
 
 func tlsOptions(t *testing.T) grpc.ServerOption {
+	return tlsOptionsWithCerts(
+		t,
+		&TLSOptions{
+			RootCert: filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/root-cert.pem"),
+			Cert:     filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/cert-chain.pem"),
+			Key:      filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/key.pem"),
+		},
+	)
+}
+
+func tlsOptionsWithCerts(t *testing.T, certs *TLSOptions) grpc.ServerOption {
 	t.Helper()
-	cert, err := tls.LoadX509KeyPair(
-		filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/cert-chain.pem"),
-		filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/key.pem"))
+	cert, err := tls.LoadX509KeyPair(certs.Cert, certs.Key)
 	if err != nil {
 		t.Fatal(err)
 	}
 	peerCertVerifier := spiffe.NewPeerCertVerifier()
 	if err := peerCertVerifier.AddMappingFromPEM("cluster.local",
-		testutil.ReadFile(t, filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot/root-cert.pem"))); err != nil {
+		testutil.ReadFile(t, certs.RootCert)); err != nil {
 		t.Fatal(err)
 	}
+
 	return grpc.Creds(credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientAuth:   tls.VerifyClientCertIfGiven,
@@ -98,11 +108,14 @@ func tlsOptions(t *testing.T) grpc.ServerOption {
 	}))
 }
 
-func serve(t *testing.T, ca mockCAServer, opts ...grpc.ServerOption) string {
+func serve(t *testing.T, ca mockCAServer, address string, opts ...grpc.ServerOption) (string, func()) {
 	// create a local grpc server
 	s := grpc.NewServer(opts...)
 	t.Cleanup(s.Stop)
-	lis, err := net.Listen("tcp", mockServerAddress)
+	if address == "" {
+		address = mockServerAddress
+	}
+	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
@@ -114,7 +127,7 @@ func serve(t *testing.T, ca mockCAServer, opts ...grpc.ServerOption) string {
 		}
 	}()
 	_, port, _ := net.SplitHostPort(lis.Addr().String())
-	return fmt.Sprintf("localhost:%s", port)
+	return fmt.Sprintf("localhost:%s", port), s.Stop
 }
 
 func TestCitadelClientRotation(t *testing.T) {
@@ -128,10 +141,50 @@ func TestCitadelClientRotation(t *testing.T) {
 			t.Fatalf("expected cert: %v", resp)
 		}
 	}
+	checkSignWithRepeat := func(t *testing.T, cli security.Client, expectError bool, repeat int) {
+		t.Helper()
+		var resp []string
+		var err error
+		for i := 0; i < repeat; i++ {
+			resp, err = cli.CSRSign([]byte{0o1}, 1)
+			if expectError == (err != nil) && (!expectError || !reflect.DeepEqual(resp, fakeCert)) {
+				break
+			}
+			time.Sleep(time.Millisecond * 100)
+		}
+		if expectError != (err != nil) {
+			t.Fatalf("expected error:%v, got error:%v", expectError, err)
+		}
+		if !expectError && !reflect.DeepEqual(resp, fakeCert) {
+			t.Fatalf("expected cert: %v", resp)
+		}
+	}
 	certDir := filepath.Join(env.IstioSrc, "./tests/testdata/certs/pilot")
+	setOldCertsInDir := func(t *testing.T, certDirectory string) {
+		if err := file.Copy(filepath.Join(certDir, "cert-chain.pem"), certDirectory, "cert-chain.pem"); err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Copy(filepath.Join(certDir, "key.pem"), certDirectory, "key.pem"); err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Copy(filepath.Join(certDir, "root-cert.pem"), certDirectory, "root-cert.pem"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setNewCertsInDir := func(t *testing.T, certDirectory string) {
+		if err := file.Copy("testdata/new-cert-chain.pem", certDirectory, "cert-chain.pem"); err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Copy("testdata/new-key.pem", certDirectory, "key.pem"); err != nil {
+			t.Fatal(err)
+		}
+		if err := file.Copy("testdata/new-root-cert.pem", certDirectory, "root-cert.pem"); err != nil {
+			t.Fatal(err)
+		}
+	}
 	t.Run("cert always present", func(t *testing.T) {
 		server := mockCAServer{Certs: fakeCert, Err: nil, Authenticator: security.NewFakeAuthenticator("ca")}
-		addr := serve(t, server, tlsOptions(t))
+		addr, _ := serve(t, server, "", tlsOptions(t))
 		opts := &security.Options{
 			CAEndpoint:  addr,
 			CredFetcher: plugin.CreateTokenPlugin("testdata/token"),
@@ -159,7 +212,7 @@ func TestCitadelClientRotation(t *testing.T) {
 	})
 	t.Run("cert never present", func(t *testing.T) {
 		server := mockCAServer{Certs: fakeCert, Err: nil, Authenticator: security.NewFakeAuthenticator("ca")}
-		addr := serve(t, server, tlsOptions(t))
+		addr, _ := serve(t, server, "", tlsOptions(t))
 		opts := &security.Options{
 			CAEndpoint:  addr,
 			CredFetcher: plugin.CreateTokenPlugin("testdata/token"),
@@ -186,7 +239,7 @@ func TestCitadelClientRotation(t *testing.T) {
 	t.Run("cert present later", func(t *testing.T) {
 		dir := t.TempDir()
 		server := mockCAServer{Certs: fakeCert, Err: nil, Authenticator: security.NewFakeAuthenticator("ca")}
-		addr := serve(t, server, tlsOptions(t))
+		addr, _ := serve(t, server, "", tlsOptions(t))
 		opts := &security.Options{
 			CAEndpoint:  addr,
 			CredFetcher: plugin.CreateTokenPlugin("testdata/token"),
@@ -217,6 +270,70 @@ func TestCitadelClientRotation(t *testing.T) {
 			t.Fatal(err)
 		}
 		checkSign(t, cli, false)
+	})
+
+	t.Run("service gets down and the root cert changes", func(t *testing.T) {
+		// Prepare directory with the certificates
+		tmpCertsDir := t.TempDir()
+		setOldCertsInDir(t, tmpCertsDir)
+
+		checkCSRSignFails := func(t *testing.T, cli *CitadelClient, s *mockCAServer, expectErr bool) {
+			s.Authenticator.Set("fake", "")
+			checkSign(t, cli, expectErr)
+			s.Authenticator.Set("", "istiod.istio-system.svc")
+			checkSign(t, cli, expectErr)
+		}
+
+		tlsOpts := &TLSOptions{
+			RootCert: filepath.Join(tmpCertsDir, "root-cert.pem"),
+			Key:      filepath.Join(tmpCertsDir, "key.pem"),
+			Cert:     filepath.Join(tmpCertsDir, "cert-chain.pem"),
+		}
+		server := mockCAServer{Certs: fakeCert, Err: nil, Authenticator: security.NewFakeAuthenticator("ca")}
+		addr, stopServing := serve(t, server, "", tlsOptionsWithCerts(t, tlsOpts))
+
+		opts := &security.Options{
+			CAEndpoint:  addr,
+			CredFetcher: plugin.CreateTokenPlugin("testdata/token"),
+			ProvCert:    certDir,
+		}
+		cli, err := NewCitadelClient(opts, tlsOpts)
+		if err != nil {
+			t.Errorf("failed to create ca client: %v", err)
+		}
+		t.Cleanup(cli.Close)
+
+		// Confirm the CSRSign works properly
+		checkCSRSignFails(t, cli, &server, false)
+
+		// Stop serving signing Service and confirm the CSR fails from now on
+		stopServing()
+		checkCSRSignFails(t, cli, &server, true)
+
+		// Prepare new certificates in the same location and start serving
+		// again with the new certificates.
+		// The Citadel client should notice root CA change and update the
+		// connection
+		setNewCertsInDir(t, tmpCertsDir)
+		_, stopServing = serve(t, server, addr, tlsOptionsWithCerts(t, tlsOpts))
+
+		// Confirm the CSRSign works - Citadel reestablished connection
+		checkCSRSignFails(t, cli, &server, false)
+
+		// Stop serving signing Service and replace certs again.
+		// CSRSign will fail, since Service is down but the Citadel
+		// will try to re-establish connection.
+		stopServing()
+		setOldCertsInDir(t, tmpCertsDir)
+		checkCSRSignFails(t, cli, &server, true)
+
+		// Start serving and this time try CSRSign a couple of times since
+		// the connection was reestablished already and it may take some
+		// time for the Citadel to connect successfully to the Service.
+		_, _ = serve(t, server, addr, tlsOptionsWithCerts(t, tlsOpts))
+		server.Authenticator.Set("fake", "")
+		checkSignWithRepeat(t, cli, false, 30)
+		checkCSRSignFails(t, cli, &server, false)
 	})
 }
 
@@ -252,7 +369,7 @@ func TestCitadelClient(t *testing.T) {
 
 	for id, tc := range testCases {
 		t.Run(id, func(t *testing.T) {
-			addr := serve(t, tc.server)
+			addr, _ := serve(t, tc.server, "")
 			cli, err := NewCitadelClient(&security.Options{CAEndpoint: addr}, nil)
 			if err != nil {
 				t.Errorf("failed to create ca client: %v", err)

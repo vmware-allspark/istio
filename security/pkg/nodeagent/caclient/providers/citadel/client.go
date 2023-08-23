@@ -40,12 +40,13 @@ var citadelClientLog = log.RegisterScope("citadelclient", "citadel client debugg
 
 type CitadelClient struct {
 	// It means enable tls connection to Citadel if this is not nil.
-	tlsOpts   *TLSOptions
-	client    pb.IstioCertificateServiceClient
-	conn      *grpc.ClientConn
-	provider  *caclient.TokenProvider
-	opts      *security.Options
-	usingMtls *atomic.Bool
+	tlsOpts         *TLSOptions
+	client          pb.IstioCertificateServiceClient
+	conn            *grpc.ClientConn
+	provider        *caclient.TokenProvider
+	opts            *security.Options
+	usingMtls       *atomic.Bool
+	rootCertWatcher *rootCertWatcher
 }
 
 type TLSOptions struct {
@@ -56,24 +57,28 @@ type TLSOptions struct {
 
 // NewCitadelClient create a CA client for Citadel.
 func NewCitadelClient(opts *security.Options, tlsOpts *TLSOptions) (*CitadelClient, error) {
+	rootCert := ""
+	if tlsOpts != nil {
+		rootCert = tlsOpts.RootCert
+	}
 	c := &CitadelClient{
-		tlsOpts:   tlsOpts,
-		opts:      opts,
-		provider:  caclient.NewCATokenProvider(opts),
-		usingMtls: atomic.NewBool(false),
+		tlsOpts:         tlsOpts,
+		opts:            opts,
+		provider:        caclient.NewCATokenProvider(opts),
+		usingMtls:       atomic.NewBool(false),
+		rootCertWatcher: newRootCertWatcher(rootCert),
 	}
 
-	conn, err := c.buildConnection()
-	if err != nil {
-		citadelClientLog.Errorf("Failed to connect to endpoint %s: %v", opts.CAEndpoint, err)
-		return nil, fmt.Errorf("failed to connect to endpoint %s", opts.CAEndpoint)
+	if err := c.reconnect(); err != nil {
+		return nil, fmt.Errorf("failed to create a new Citadel client: %w", err)
 	}
-	c.conn = conn
-	c.client = pb.NewIstioCertificateServiceClient(conn)
 	return c, nil
 }
 
 func (c *CitadelClient) Close() {
+	if c.rootCertWatcher != nil {
+		c.rootCertWatcher.Close()
+	}
 	if c.conn != nil {
 		c.conn.Close()
 	}
@@ -146,7 +151,39 @@ func (c *CitadelClient) buildConnection() (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
+func (c *CitadelClient) reconnect() error {
+	if c.conn != nil {
+		if err := c.conn.Close(); err != nil {
+			return fmt.Errorf("failed to close connection")
+		}
+	}
+
+	conn, err := c.buildConnection()
+	if err != nil {
+		citadelClientLog.Errorf("Failed to connect to endpoint %s: %v", c.opts.CAEndpoint, err)
+		return fmt.Errorf("failed to connect to endpoint %s: %v", c.opts.CAEndpoint, err)
+	}
+
+	c.conn = conn
+	c.client = pb.NewIstioCertificateServiceClient(conn)
+	return nil
+}
+
 func (c *CitadelClient) reconnectIfNeeded() error {
+	if c.rootCertWatcher.Changed() {
+		if c.rootCertWatcher.Exists() {
+			citadelClientLog.Debug("The Root Certificate has changed. The Citadel Client will reconnect.")
+			if err := c.reconnect(); err != nil {
+				return fmt.Errorf("failed to reconnect: %w", err)
+			}
+			citadelClientLog.Debug("The reconnection succeeded.")
+			return nil
+		}
+		// If the certificate was deleted then we avoid restarting the connection as we don't
+		// want to lose the existing connection before a new certificate is created.
+		citadelClientLog.Warnf("The Root Certificate changed but the file cannot be found.")
+	}
+
 	if c.opts.ProvCert == "" || c.usingMtls.Load() {
 		// No need to reconnect, already using mTLS or never will use it
 		return nil
@@ -158,16 +195,9 @@ func (c *CitadelClient) reconnectIfNeeded() error {
 		return nil
 	}
 
-	if err := c.conn.Close(); err != nil {
-		return fmt.Errorf("failed to close connection")
+	if err := c.reconnect(); err != nil {
+		return fmt.Errorf("failed to reconnect: %w", err)
 	}
-
-	conn, err := c.buildConnection()
-	if err != nil {
-		return err
-	}
-	c.conn = conn
-	c.client = pb.NewIstioCertificateServiceClient(conn)
 	citadelClientLog.Errorf("recreated connection")
 	return nil
 }

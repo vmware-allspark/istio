@@ -79,6 +79,7 @@ require (
 	github.com/golang/sync v0.0.0-20180314180146-1d60e4601c6f
 	github.com/gomodule/redigo v1.8.0 // indirect
 	github.com/google/cel-go v0.4.1
+	github.com/google/flatbuffers v1.12.0
 	github.com/google/go-cmp v0.5.0
 	github.com/google/gofuzz v1.1.0
 	github.com/google/uuid v1.1.1

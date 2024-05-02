@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"strconv"
 
 	//core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
@@ -36,6 +36,7 @@ import (
 	mixerpb "istio.io/api/mixer/v1"
 	attr "istio.io/pkg/attribute"
 
+	wasmcommon "istio.io/istio/mixer/pkg/flatbuffer/wasm/common"
 	"istio.io/pkg/log"
 )
 
@@ -223,8 +224,9 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 		}
 		reqMap["connection.requested_server_name"] = tlsproperties.GetTlsSniHostname()
 	}
-	downstreamPeerId, ok := commonproperties.FilterStateObjects["wasm.downstream_peer_id"]
-	if ok {
+
+	foundSourceUid := false
+	if downstreamPeerId, ok := commonproperties.FilterStateObjects["wasm.downstream_peer_id"]; ok {
 		bv := wrappers.BytesValue{}
 		ptypes.UnmarshalAny(downstreamPeerId, &bv)
 		s := string(bv.GetValue())
@@ -236,8 +238,30 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 			if len(namespace) == 2 {
 				reqMap["source.namespace"] = namespace[1]
 			}
+			foundSourceUid = true
 		}
 	}
+
+	if !foundSourceUid {
+		if downstreamPeer, ok := commonproperties.FilterStateObjects["wasm.downstream_peer"]; ok {
+			bv := wrappers.BytesValue{}
+			ptypes.UnmarshalAny(downstreamPeer, &bv)
+			if bv.GetValue() != nil {
+				nodeData := wasmcommon.GetRootAsFlatNode(bv.GetValue(), 0)
+				name := nodeData.Name()
+				namespace := nodeData.Namespace()
+
+				if name != nil && namespace != nil {
+					reqMap["source.uid"] = fmt.Sprintf("kubernetes://%s.%s", string(name[:]), string(namespace[:]))
+				}
+
+				if namespace != nil {
+					reqMap["source.namespace"] = string(namespace[:])
+				}
+			}
+		}
+	}
+
 	// This is for identifying the log type as Service Access Logs instead of Mixer Report
 	// This is more specifically for making migration easier.
 	// In migration users will enable access log service and then after will
@@ -251,7 +275,7 @@ func AccessLogProtoBag(msg *accesslog.StreamAccessLogsMessage, num int) *EnvoyPr
 	return pb
 }
 
-//fills in destination.service.name and destination.service.host after the initial bag has been built
+// fills in destination.service.name and destination.service.host after the initial bag has been built
 func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -272,7 +296,7 @@ func (pb *EnvoyProtoBag) AddNamespaceDependentAttributes(destinationNamespace st
 
 	port, err := strconv.ParseInt(parts[1], 10, 64)
 	if err == nil {
-	        log.Debugf("Upstream cluster : %s, dst port: %d,  reset port: %d", pb.upstreamCluster, pb.reqMap["destination.port"], port)
+		log.Debugf("Upstream cluster : %s, dst port: %d,  reset port: %d", pb.upstreamCluster, pb.reqMap["destination.port"], port)
 		pb.reqMap["destination.port"] = port
 	}
 
